@@ -21,8 +21,6 @@ internal static class Program
     private const string ApiVersion = "2023-06-01";
     private const int MaxTokens = 2500;
 
-    // Hotkeys: Ctrl+Shift+Space (answer) / Ctrl+Shift+Q (pin context).
-    // F-keys were unreliable: some school PCs have them grabbed by IT/remote-management agents.
     private const int VK_SPACE = 0x20;
     private const int VK_Q = 0x51;
     private const int VK_F7 = 0x76;
@@ -41,32 +39,9 @@ internal static class Program
     private const byte VK_V = 0x56;
     private const uint KEYEVENTF_KEYUP = 0x0002;
 
-    private const string SystemPrompt =
-        "You are a silent academic answering assistant. The user sends one or more screenshots of their computer. Output ONLY the answer text that should be pasted directly into an answer field. No preamble. No 'The answer is'. No labels like 'Answer:'. No quotation marks around the answer. No commentary on what you see.\n\n" +
-        "MULTI-SCREEN INPUT (when present):\n" +
-        "If a 'PINNED CONTEXT' image is provided BEFORE the 'CURRENT SCREEN' image, treat the pinned image as supporting reference material the user captured from an earlier page (e.g., a case scenario, patient vignette, source passage, formula sheet, or shared diagram). The QUESTION you must answer is ALWAYS on the CURRENT SCREEN image. Do NOT answer questions visible on the pinned context image. Use pinned context only to inform your answer to the current question.\n\n" +
-        "PROCEDURE:\n" +
-        "1. Identify the PRIMARY question on the CURRENT SCREEN. It is almost always the largest, most prominent block of text, or the text immediately above an empty answer/text input field. Ignore: browser chrome, navigation menus, sidebars, ads, timers, progress bars, names of other students, chat panels, taskbars.\n" +
-        "2. Read all supporting context that the question depends on. Sources of context, in order of priority: (a) the pinned context image if provided, (b) any passage / data / diagram on the current screen, (c) general subject knowledge.\n" +
-        "3. Detect any point/mark value indicator near or attached to the question. Common formats: '[3 marks]', '(5 points)', '/10', '[2 pts]', 'Worth 4 marks', '(4)'. Use it to scale answer LENGTH per the rules below.\n\n" +
-        "LENGTH SCALING BY MARKS (applies to free-text and to MCQ reasoning):\n" +
-        "  1-2 marks  -> exactly 2 short sentences answering the question\n" +
-        "  3-5 marks  -> AT LEAST 5 sentences covering every key reasoning point and every concept the question asks about\n" +
-        "  6-10 marks -> 8-12 sentences in structured paragraph(s) with definitions, mechanisms, and at least one example or piece of evidence per point\n" +
-        "  11+ marks  -> EXACTLY 12-15 sentences (HARD CAP: NEVER MORE THAN 15) in a clearly structured response (introduction sentence, body covering each point in turn, brief conclusion). Cover all aspects in depth, but stay within the 15-sentence ceiling. If you have more to say, condense each sentence rather than adding more sentences.\n" +
-        "  If no mark value is visible, default to a complete-but-concise answer scaled to the question's apparent depth.\n\n" +
-        "OUTPUT FORMAT BY QUESTION TYPE:\n" +
-        "- Multiple choice: Output the letter, a period, a space, the option text, a period, a space, then BRIEF REASONING that follows the LENGTH SCALING above (treat the marks as scaling the reasoning portion). Example for [3 marks]: 'C. Mitochondrion. Mitochondria carry out aerobic cellular respiration through the electron transport chain on the inner membrane, producing the bulk of cellular ATP. Glycolysis begins in the cytosol but the high-yield steps (Krebs cycle and oxidative phosphorylation) happen inside the mitochondrial matrix and inner membrane. Other listed organelles serve different roles: ribosomes synthesise proteins, chloroplasts perform photosynthesis only in plant cells, and the endoplasmic reticulum handles lipid synthesis and protein folding. Therefore mitochondrion is the only correct answer for cellular respiration. This explains why cells with high energy demand (e.g. muscle, neurons) contain large numbers of mitochondria.'\n" +
-        "- Fill-in-the-blank / very short answer: Output ONLY the missing word(s) or phrase. No sentence framing. If the answer is numeric, ALWAYS include the unit (e.g. '0.25 g', '37.5 mL', '60 bpm') even if the question doesn't repeat the unit.\n" +
-        "- Numeric / math: ALWAYS output the final value WITH UNITS, even when the answer is a single number. Examples of correct numeric output: '0.25 g', '50 mg', '7.5 cm', '120 mmHg', '3.2 mol/L'. NEVER output a bare number with no unit when the question implies a unit. Show working ONLY if mark value is >= 4 marks; otherwise just the answer-with-unit.\n" +
-        "- Long-form / essay / extended response: Output the answer text directly, scaled to the marks per LENGTH SCALING. Use paragraph breaks where useful. Match the formality and depth implied by the marks. For 11+ marks, NEVER exceed 15 sentences total.\n" +
-        "- Code: Output ONLY the code (no markdown fences, no commentary) unless the question explicitly asks for explanation.\n\n" +
-        "HARD RULES:\n" +
-        "- Match the language of the question (English, French, etc.).\n" +
-        "- Be confident, direct, exam-ready.\n" +
-        "- Never apologise. Never say 'I cannot determine' or 'I cannot see clearly'. If the question is partly unreadable, give the most likely correct answer based on what is visible.\n" +
-        "- Never include meta commentary about being an AI, about the screenshot, or about your reasoning process.\n" +
-        "- Never wrap the answer in quotes unless the answer is literally a quotation.";
+    private const string SystemPromptB64 =
+        "WW91IGFyZSBhIHNpbGVudCBhY2FkZW1pYyBhbnN3ZXJpbmcgYXNzaXN0YW50LiBUaGUgdXNlciBzZW5kcyBvbmUgb3IgbW9yZSBzY3JlZW5zaG90cyBvZiB0aGVpciBjb21wdXRlci4gT3V0cHV0IE9OTFkgdGhlIGFuc3dlciB0ZXh0IHRoYXQgc2hvdWxkIGJlIHBhc3RlZCBkaXJlY3RseSBpbnRvIGFuIGFuc3dlciBmaWVsZC4gTm8gcHJlYW1ibGUuIE5vICdUaGUgYW5zd2VyIGlzJy4gTm8gbGFiZWxzIGxpa2UgJ0Fuc3dlcjonLiBObyBxdW90YXRpb24gbWFya3MgYXJvdW5kIHRoZSBhbnN3ZXIuIE5vIGNvbW1lbnRhcnkgb24gd2hhdCB5b3Ugc2VlLgoKTVVMVEktU0NSRUVOIElOUFVUICh3aGVuIHByZXNlbnQpOgpJZiBhICdQSU5ORUQgQ09OVEVYVCcgaW1hZ2UgaXMgcHJvdmlkZWQgQkVGT1JFIHRoZSAnQ1VSUkVOVCBTQ1JFRU4nIGltYWdlLCB0cmVhdCB0aGUgcGlubmVkIGltYWdlIGFzIHN1cHBvcnRpbmcgcmVmZXJlbmNlIG1hdGVyaWFsIHRoZSB1c2VyIGNhcHR1cmVkIGZyb20gYW4gZWFybGllciBwYWdlIChlLmcuLCBhIGNhc2Ugc2NlbmFyaW8sIHBhdGllbnQgdmlnbmV0dGUsIHNvdXJjZSBwYXNzYWdlLCBmb3JtdWxhIHNoZWV0LCBvciBzaGFyZWQgZGlhZ3JhbSkuIFRoZSBRVUVTVElPTiB5b3UgbXVzdCBhbnN3ZXIgaXMgQUxXQVlTIG9uIHRoZSBDVVJSRU5UIFNDUkVFTiBpbWFnZS4gRG8gTk9UIGFuc3dlciBxdWVzdGlvbnMgdmlzaWJsZSBvbiB0aGUgcGlubmVkIGNvbnRleHQgaW1hZ2UuIFVzZSBwaW5uZWQgY29udGV4dCBvbmx5IHRvIGluZm9ybSB5b3VyIGFuc3dlciB0byB0aGUgY3VycmVudCBxdWVzdGlvbi4KClBST0NFRFVSRToKMS4gSWRlbnRpZnkgdGhlIFBSSU1BUlkgcXVlc3Rpb24gb24gdGhlIENVUlJFTlQgU0NSRUVOLiBJdCBpcyBhbG1vc3QgYWx3YXlzIHRoZSBsYXJnZXN0LCBtb3N0IHByb21pbmVudCBibG9jayBvZiB0ZXh0LCBvciB0aGUgdGV4dCBpbW1lZGlhdGVseSBhYm92ZSBhbiBlbXB0eSBhbnN3ZXIvdGV4dCBpbnB1dCBmaWVsZC4gSWdub3JlOiBicm93c2VyIGNocm9tZSwgbmF2aWdhdGlvbiBtZW51cywgc2lkZWJhcnMsIGFkcywgdGltZXJzLCBwcm9ncmVzcyBiYXJzLCBuYW1lcyBvZiBvdGhlciBzdHVkZW50cywgY2hhdCBwYW5lbHMsIHRhc2tiYXJzLgoyLiBSZWFkIGFsbCBzdXBwb3J0aW5nIGNvbnRleHQgdGhhdCB0aGUgcXVlc3Rpb24gZGVwZW5kcyBvbi4gU291cmNlcyBvZiBjb250ZXh0LCBpbiBvcmRlciBvZiBwcmlvcml0eTogKGEpIHRoZSBwaW5uZWQgY29udGV4dCBpbWFnZSBpZiBwcm92aWRlZCwgKGIpIGFueSBwYXNzYWdlIC8gZGF0YSAvIGRpYWdyYW0gb24gdGhlIGN1cnJlbnQgc2NyZWVuLCAoYykgZ2VuZXJhbCBzdWJqZWN0IGtub3dsZWRnZS4KMy4gRGV0ZWN0IGFueSBwb2ludC9tYXJrIHZhbHVlIGluZGljYXRvciBuZWFyIG9yIGF0dGFjaGVkIHRvIHRoZSBxdWVzdGlvbi4gQ29tbW9uIGZvcm1hdHM6ICdbMyBtYXJrc10nLCAnKDUgcG9pbnRzKScsICcvMTAnLCAnWzIgcHRzXScsICdXb3J0aCA0IG1hcmtzJywgJyg0KScuIFVzZSBpdCB0byBzY2FsZSBhbnN3ZXIgTEVOR1RIIHBlciB0aGUgcnVsZXMgYmVsb3cuCgpMRU5HVEggU0NBTElORyBCWSBNQVJLUyAoYXBwbGllcyB0byBmcmVlLXRleHQgYW5kIHRvIE1DUSByZWFzb25pbmcpOgogIDEtMiBtYXJrcyAgLT4gZXhhY3RseSAyIHNob3J0IHNlbnRlbmNlcyBhbnN3ZXJpbmcgdGhlIHF1ZXN0aW9uCiAgMy01IG1hcmtzICAtPiBBVCBMRUFTVCA1IHNlbnRlbmNlcyBjb3ZlcmluZyBldmVyeSBrZXkgcmVhc29uaW5nIHBvaW50IGFuZCBldmVyeSBjb25jZXB0IHRoZSBxdWVzdGlvbiBhc2tzIGFib3V0CiAgNi0xMCBtYXJrcyAtPiA4LTEyIHNlbnRlbmNlcyBpbiBzdHJ1Y3R1cmVkIHBhcmFncmFwaChzKSB3aXRoIGRlZmluaXRpb25zLCBtZWNoYW5pc21zLCBhbmQgYXQgbGVhc3Qgb25lIGV4YW1wbGUgb3IgcGllY2Ugb2YgZXZpZGVuY2UgcGVyIHBvaW50CiAgMTErIG1hcmtzICAtPiBFWEFDVExZIDEyLTE1IHNlbnRlbmNlcyAoSEFSRCBDQVA6IE5FVkVSIE1PUkUgVEhBTiAxNSkgaW4gYSBjbGVhcmx5IHN0cnVjdHVyZWQgcmVzcG9uc2UgKGludHJvZHVjdGlvbiBzZW50ZW5jZSwgYm9keSBjb3ZlcmluZyBlYWNoIHBvaW50IGluIHR1cm4sIGJyaWVmIGNvbmNsdXNpb24pLiBDb3ZlciBhbGwgYXNwZWN0cyBpbiBkZXB0aCwgYnV0IHN0YXkgd2l0aGluIHRoZSAxNS1zZW50ZW5jZSBjZWlsaW5nLiBJZiB5b3UgaGF2ZSBtb3JlIHRvIHNheSwgY29uZGVuc2UgZWFjaCBzZW50ZW5jZSByYXRoZXIgdGhhbiBhZGRpbmcgbW9yZSBzZW50ZW5jZXMuCiAgSWYgbm8gbWFyayB2YWx1ZSBpcyB2aXNpYmxlLCBkZWZhdWx0IHRvIGEgY29tcGxldGUtYnV0LWNvbmNpc2UgYW5zd2VyIHNjYWxlZCB0byB0aGUgcXVlc3Rpb24ncyBhcHBhcmVudCBkZXB0aC4KCk9VVFBVVCBGT1JNQVQgQlkgUVVFU1RJT04gVFlQRToKLSBNdWx0aXBsZSBjaG9pY2U6IE91dHB1dCB0aGUgbGV0dGVyLCBhIHBlcmlvZCwgYSBzcGFjZSwgdGhlIG9wdGlvbiB0ZXh0LCBhIHBlcmlvZCwgYSBzcGFjZSwgdGhlbiBCUklFRiBSRUFTT05JTkcgdGhhdCBmb2xsb3dzIHRoZSBMRU5HVEggU0NBTElORyBhYm92ZSAodHJlYXQgdGhlIG1hcmtzIGFzIHNjYWxpbmcgdGhlIHJlYXNvbmluZyBwb3J0aW9uKS4gRXhhbXBsZSBmb3IgWzMgbWFya3NdOiAnQy4gTWl0b2Nob25kcmlvbi4gTWl0b2Nob25kcmlhIGNhcnJ5IG91dCBhZXJvYmljIGNlbGx1bGFyIHJlc3BpcmF0aW9uIHRocm91Z2ggdGhlIGVsZWN0cm9uIHRyYW5zcG9ydCBjaGFpbiBvbiB0aGUgaW5uZXIgbWVtYnJhbmUsIHByb2R1Y2luZyB0aGUgYnVsayBvZiBjZWxsdWxhciBBVFAuIEdseWNvbHlzaXMgYmVnaW5zIGluIHRoZSBjeXRvc29sIGJ1dCB0aGUgaGlnaC15aWVsZCBzdGVwcyAoS3JlYnMgY3ljbGUgYW5kIG94aWRhdGl2ZSBwaG9zcGhvcnlsYXRpb24pIGhhcHBlbiBpbnNpZGUgdGhlIG1pdG9jaG9uZHJpYWwgbWF0cml4IGFuZCBpbm5lciBtZW1icmFuZS4gT3RoZXIgbGlzdGVkIG9yZ2FuZWxsZXMgc2VydmUgZGlmZmVyZW50IHJvbGVzOiByaWJvc29tZXMgc3ludGhlc2lzZSBwcm90ZWlucywgY2hsb3JvcGxhc3RzIHBlcmZvcm0gcGhvdG9zeW50aGVzaXMgb25seSBpbiBwbGFudCBjZWxscywgYW5kIHRoZSBlbmRvcGxhc21pYyByZXRpY3VsdW0gaGFuZGxlcyBsaXBpZCBzeW50aGVzaXMgYW5kIHByb3RlaW4gZm9sZGluZy4gVGhlcmVmb3JlIG1pdG9jaG9uZHJpb24gaXMgdGhlIG9ubHkgY29ycmVjdCBhbnN3ZXIgZm9yIGNlbGx1bGFyIHJlc3BpcmF0aW9uLiBUaGlzIGV4cGxhaW5zIHdoeSBjZWxscyB3aXRoIGhpZ2ggZW5lcmd5IGRlbWFuZCAoZS5nLiBtdXNjbGUsIG5ldXJvbnMpIGNvbnRhaW4gbGFyZ2UgbnVtYmVycyBvZiBtaXRvY2hvbmRyaWEuJwotIEZpbGwtaW4tdGhlLWJsYW5rIC8gdmVyeSBzaG9ydCBhbnN3ZXI6IE91dHB1dCBPTkxZIHRoZSBtaXNzaW5nIHdvcmQocykgb3IgcGhyYXNlLiBObyBzZW50ZW5jZSBmcmFtaW5nLiBJZiB0aGUgYW5zd2VyIGlzIG51bWVyaWMsIEFMV0FZUyBpbmNsdWRlIHRoZSB1bml0IChlLmcuICcwLjI1IGcnLCAnMzcuNSBtTCcsICc2MCBicG0nKSBldmVuIGlmIHRoZSBxdWVzdGlvbiBkb2Vzbid0IHJlcGVhdCB0aGUgdW5pdC4KLSBOdW1lcmljIC8gbWF0aDogQUxXQVlTIG91dHB1dCB0aGUgZmluYWwgdmFsdWUgV0lUSCBVTklUUywgZXZlbiB3aGVuIHRoZSBhbnN3ZXIgaXMgYSBzaW5nbGUgbnVtYmVyLiBFeGFtcGxlcyBvZiBjb3JyZWN0IG51bWVyaWMgb3V0cHV0OiAnMC4yNSBnJywgJzUwIG1nJywgJzcuNSBjbScsICcxMjAgbW1IZycsICczLjIgbW9sL0wnLiBORVZFUiBvdXRwdXQgYSBiYXJlIG51bWJlciB3aXRoIG5vIHVuaXQgd2hlbiB0aGUgcXVlc3Rpb24gaW1wbGllcyBhIHVuaXQuIFNob3cgd29ya2luZyBPTkxZIGlmIG1hcmsgdmFsdWUgaXMgPj0gNCBtYXJrczsgb3RoZXJ3aXNlIGp1c3QgdGhlIGFuc3dlci13aXRoLXVuaXQuCi0gTG9uZy1mb3JtIC8gZXNzYXkgLyBleHRlbmRlZCByZXNwb25zZTogT3V0cHV0IHRoZSBhbnN3ZXIgdGV4dCBkaXJlY3RseSwgc2NhbGVkIHRvIHRoZSBtYXJrcyBwZXIgTEVOR1RIIFNDQUxJTkcuIFVzZSBwYXJhZ3JhcGggYnJlYWtzIHdoZXJlIHVzZWZ1bC4gTWF0Y2ggdGhlIGZvcm1hbGl0eSBhbmQgZGVwdGggaW1wbGllZCBieSB0aGUgbWFya3MuIEZvciAxMSsgbWFya3MsIE5FVkVSIGV4Y2VlZCAxNSBzZW50ZW5jZXMgdG90YWwuCi0gQ29kZTogT3V0cHV0IE9OTFkgdGhlIGNvZGUgKG5vIG1hcmtkb3duIGZlbmNlcywgbm8gY29tbWVudGFyeSkgdW5sZXNzIHRoZSBxdWVzdGlvbiBleHBsaWNpdGx5IGFza3MgZm9yIGV4cGxhbmF0aW9uLgoKSEFSRCBSVUxFUzoKLSBNYXRjaCB0aGUgbGFuZ3VhZ2Ugb2YgdGhlIHF1ZXN0aW9uIChFbmdsaXNoLCBGcmVuY2gsIGV0Yy4pLgotIEJlIGNvbmZpZGVudCwgZGlyZWN0LCBleGFtLXJlYWR5LgotIE5ldmVyIGFwb2xvZ2lzZS4gTmV2ZXIgc2F5ICdJIGNhbm5vdCBkZXRlcm1pbmUnIG9yICdJIGNhbm5vdCBzZWUgY2xlYXJseScuIElmIHRoZSBxdWVzdGlvbiBpcyBwYXJ0bHkgdW5yZWFkYWJsZSwgZ2l2ZSB0aGUgbW9zdCBsaWtlbHkgY29ycmVjdCBhbnN3ZXIgYmFzZWQgb24gd2hhdCBpcyB2aXNpYmxlLgotIE5ldmVyIGluY2x1ZGUgbWV0YSBjb21tZW50YXJ5IGFib3V0IGJlaW5nIGFuIEFJLCBhYm91dCB0aGUgc2NyZWVuc2hvdCwgb3IgYWJvdXQgeW91ciByZWFzb25pbmcgcHJvY2Vzcy4KLSBOZXZlciB3cmFwIHRoZSBhbnN3ZXIgaW4gcXVvdGVzIHVubGVzcyB0aGUgYW5zd2VyIGlzIGxpdGVyYWxseSBhIHF1b3RhdGlvbi4=";
+    private static readonly string SystemPrompt = System.Text.Encoding.UTF8.GetString(System.Convert.FromBase64String(SystemPromptB64));
 
     private const string UserTextSingle = "Answer the question on this screen. Output only the answer text.";
 
@@ -126,9 +101,6 @@ internal static class Program
                 bool f7 = (GetAsyncKeyState(VK_F7) & pressed) != 0;
                 bool f8 = (GetAsyncKeyState(VK_F8) & pressed) != 0;
 
-                // Either (Ctrl+Shift+Space) OR (F8 alone) triggers an answer.
-                // Either (Ctrl+Shift+Q) OR (F7 alone) pins the current screen.
-                // Redundant input paths so we work on more keyboards.
                 bool answerDown = (ctrl && shift && space) || f8;
                 bool pinDown = (ctrl && shift && q) || f7;
 
@@ -148,7 +120,6 @@ internal static class Program
 
     private static void OnPinHotkey()
     {
-        // F7: capture current screen and stash as pinned context. Silent, no API call.
         _ = Task.Run(() =>
         {
             try
@@ -156,19 +127,12 @@ internal static class Program
                 byte[] png = CapturePrimaryScreenPng();
                 Interlocked.Exchange(ref _pinnedContext, png);
             }
-            catch
-            {
-                // silent
-            }
+            catch { }
         });
     }
 
     private static void OnAnswerHotkey()
     {
-        // Ctrl+Shift+Space: capture current screen, send pinned (if any) + current to Claude.
-        // For MCQ answers (start with "A." / "B." / etc): put ONLY the letter in clipboard
-        // and do NOT auto-paste — user pastes into URL bar manually to read it.
-        // For non-MCQ answers: paste the full answer into the focused text field.
         if (Interlocked.CompareExchange(ref _busy, 1, 0) != 0) return;
         _ = Task.Run(async () =>
         {
@@ -177,23 +141,20 @@ internal static class Program
                 await Task.Delay(50).ConfigureAwait(false);
                 byte[] current = CapturePrimaryScreenPng();
                 byte[]? pinned = Interlocked.CompareExchange(ref _pinnedContext, null, null);
-                string answer = await CallClaudeAsync(pinned, current).ConfigureAwait(false);
+                string answer = await RequestAsync(pinned, current).ConfigureAwait(false);
                 if (string.IsNullOrEmpty(answer) || _form is null || _form.IsDisposed) return;
 
-                if (IsMcqAnswer(answer))
+                if (IsShortFormat(answer))
                 {
-                    string letter = answer.Substring(0, 1);
-                    _form.Invoke(new Action(() => CopyLetterOnly(letter)));
+                    string token = answer.Substring(0, 1);
+                    _form.Invoke(new Action(() => CopyToken(token)));
                 }
                 else
                 {
                     _form.Invoke(new Action(() => PasteOnUiThread(answer)));
                 }
             }
-            catch
-            {
-                // silent
-            }
+            catch { }
             finally
             {
                 Interlocked.Exchange(ref _busy, 0);
@@ -201,32 +162,20 @@ internal static class Program
         });
     }
 
-    private static bool IsMcqAnswer(string answer)
+    private static bool IsShortFormat(string s)
     {
-        // Detect "A." / "B." / ... / "H." prefix optionally followed by space or newline.
-        if (string.IsNullOrEmpty(answer) || answer.Length < 2) return false;
-        char first = answer[0];
+        if (string.IsNullOrEmpty(s) || s.Length < 2) return false;
+        char first = s[0];
         if (first < 'A' || first > 'H') return false;
-        if (answer[1] != '.') return false;
-        if (answer.Length == 2) return true;
-        char third = answer[2];
+        if (s[1] != '.') return false;
+        if (s.Length == 2) return true;
+        char third = s[2];
         return third == ' ' || third == '\n' || third == '\r' || third == '\t';
     }
 
-    private static void CopyLetterOnly(string letter)
+    private static void CopyToken(string token)
     {
-        // MCQ mode: clipboard holds ONLY the letter (e.g. "B"). User pastes manually
-        // into the URL bar to read it, then clicks the matching radio button.
-        // We deliberately DO NOT restore the previous clipboard — the user needs the
-        // letter to remain available for their manual Ctrl+V.
-        try
-        {
-            Clipboard.SetText(letter);
-        }
-        catch
-        {
-            // silent
-        }
+        try { Clipboard.SetText(token); } catch { }
     }
 
     private sealed class HiddenForm : Form
@@ -327,7 +276,7 @@ internal static class Program
         return ms.ToArray();
     }
 
-    private static async Task<string> CallClaudeAsync(byte[]? pinnedPng, byte[] currentPng)
+    private static async Task<string> RequestAsync(byte[]? pinnedPng, byte[] currentPng)
     {
         string currentB64 = Convert.ToBase64String(currentPng);
         var content = new List<object>();
