@@ -366,13 +366,6 @@ internal static class Program
 
     private static void PasteOnUiThread(string text)
     {
-        string original = string.Empty;
-        try
-        {
-            if (Clipboard.ContainsText()) original = Clipboard.GetText();
-        }
-        catch { }
-
         try
         {
             Clipboard.SetText(text);
@@ -389,13 +382,8 @@ internal static class Program
         keybd_event(VK_V, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
         keybd_event(VK_CONTROL, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
 
-        Thread.Sleep(300);
-
-        try
-        {
-            if (!string.IsNullOrEmpty(original)) Clipboard.SetText(original);
-            else Clipboard.Clear();
-        }
-        catch { }
+        // Intentionally do NOT restore the user's previous clipboard.
+        // The answer stays available so they can manually paste again
+        // if the original Ctrl+V missed the intended field.
     }
 }
