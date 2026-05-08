@@ -75,6 +75,9 @@ internal static class Program
     [STAThread]
     private static void Main()
     {
+        using var singleton = new Mutex(true, "{e8f7a6b5-c4d3-e2f1-9a8b-7c6d5e4f3a2b}", out bool isFirst);
+        if (!isFirst) return;
+
         Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
         Application.EnableVisualStyles();
         _form = new HiddenForm();
