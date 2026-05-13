@@ -12,9 +12,6 @@
     <SelfContained>true</SelfContained>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
-    <PublishTrimmed>true</PublishTrimmed>
-    <TrimMode>partial</TrimMode>
-    <_SuppressWinFormsTrimError>true</_SuppressWinFormsTrimError>
     <DebugType>none</DebugType>
     <DebugSymbols>false</DebugSymbols>
     <InvariantGlobalization>true</InvariantGlobalization>
