@@ -16,7 +16,7 @@ namespace SchoolApp;
 internal static class Program
 {
     private const string ApiKey = "__ANTHROPIC_API_KEY__";
-    private const string Model = "claude-sonnet-4-6";
+    private const string Model = "claude-opus-5-5";
     private const string ApiUrl = "https://api.anthropic.com/v1/messages";
     private const string ApiVersion = "2023-06-01";
     private const int MaxTokens = 2500;
